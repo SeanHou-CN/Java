@@ -916,10 +916,10 @@ public class ClientInstanceBody implements Runnable{
 				if (this.userLevel > 50)
 					this.levelControl[9] = 48;				
 				
-				tsp = sKRS.getBinaryStream("chineseName").read(ickr.array(), 96 + 2, 1024);
-				ickr.putShort(96, (short) tsp);
-				tep = sKRS.getBinaryStream("titleName").read(ickr.array(), 96 + 2 + tsp + 2, 1024);
-				ickr.putShort(96 + 2 + tsp, (short) tep);
+				tsp = sKRS.getBinaryStream("chineseName").read(ickr.array(), 64 + 2, 1024);
+				ickr.putShort(64, (short) tsp);
+				tep = sKRS.getBinaryStream("titleName").read(ickr.array(), 64 + 2 + tsp + 2, 1024);
+				ickr.putShort(64 + 2 + tsp, (short) tep);
 				
 				if (sKRS.getBoolean("singleKey")){//do not allowed to logon from the other computer for this user,THostofUser store the host to user info,if the user allowed to logon from mult
 					sKRS = sSRead.executeQuery("Select hostID from THostofUser where userID = " + this.userID + " and serverID = " + (int)(this.myServerSource.getServerIDL() >>> 32));
@@ -953,10 +953,9 @@ public class ClientInstanceBody implements Runnable{
 				sSRead.executeBatch();
 				sSRead.clearBatch();
 				
-				System.arraycopy(randomCode(32), 0, ickr.array(), 64, 32);
-				if (this.stringEncode(ickr.array(), ickr.array(), 96, 64 + tsp + tep + 2 + 2 + 32, 96, 64 + tsp + tep + 2 + 2 + 32, 2) == -1) throw new Exception("Encrption error");
+				if (this.stringEncode(ickr.array(), ickr.array(), 64, 64 + tsp + tep + 2 + 2, 64, 64 + tsp + tep + 2 + 2, 2) == -1) throw new Exception("Encrption error");
 				
-				ickr.limit(64 + tsp + tep + 2 + 2 + 32);
+				ickr.limit(64 + tsp + tep + 2 + 2);
 				ickr.putLong(0, this.hostID);
 				ickr.putShort(20, (short) 0);//this is the function number
 				ickr.put(22, (byte) 2);//this is the command number
@@ -964,7 +963,7 @@ public class ClientInstanceBody implements Runnable{
 				ickr.put(24, (byte) 1);
 				ickr.put(25, (byte) 2);
 				ickr.putShort(26, (short) (64 & 0x1ff));				
-				ickr.putInt(28, tsp + tep + 2 + 2 + 32);				
+				ickr.putInt(28, tsp + tep + 2 + 2);				
 				ickr.position(0);
 				
 				if (!this.myServerSource.offerActiveQueue(this)) {					
@@ -1711,8 +1710,18 @@ public class ClientInstanceBody implements Runnable{
 			this.commandQueue = this.mySource.getCommandQueue();
 			this.outQueue = this.mySource.getOutQueue();
 			cfp.put((byte) 3, (short) 0);
-			this.sendingData(this.scOut);			
+			this.sendingData(this.scOut);
+			sSRead = mySource.getStatement();
+			sSRead.execute("Update THostInformation set lastLogin = " + this.myServerSource.getInteractionKeyDate() + " where hostID = " + this.hostID);
 		}catch(Exception e){}
+		finally {
+			try {				
+				mySource.getStatement().execute("UNLOCK TABLES");
+			}catch(Exception er) {}
+			try {			
+				sSRead.close();
+			}catch(Exception er) {}
+		}
 	}		
 	/*
 	 * if level less than 3,then bstr must be use bodyOutB
